@@ -112,8 +112,8 @@ if __name__ == '__main__':
                                                         stratify=data["spam"].values)
     classifier = SpamClassifier()
     classifier_model, model_word_features = classifier.train(train_X, train_Y)
-    model_name = 'spam_classifier_model.pk'
-    model_word_features_name = 'spam_classifier_model_word_features.pk'
+    model_name = 'sample_emails.pk'
+    model_word_features_name = 'sample_email_word_features.pk'
     with open(model_name, 'wb') as model_fp:
         pickle.dump(classifier_model, model_fp)
     with open(model_word_features_name, 'wb') as model_fp:
