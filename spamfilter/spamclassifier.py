@@ -35,7 +35,6 @@ class SpamClassifier:
 
         return corpus
 
-
     def get_features(self, corpus):
         """
         returns a Set of unique words in complete corpus.
@@ -48,7 +47,6 @@ class SpamClassifier:
         unique_words = set(txt)
 
         return unique_words
-
 
     def extract_features(self, document):
         """
@@ -64,7 +62,6 @@ class SpamClassifier:
         features = {elem: True if elem in self.word_features else False for elem in doc_words}
 
         return features
-
 
     def train(self, text, labels):
         """
@@ -86,7 +83,6 @@ class SpamClassifier:
 
         return self.classifier, self.word_features
 
-
     def predict(self, text):
         """
         Returns prediction labels of given input text.
@@ -107,7 +103,6 @@ class SpamClassifier:
 
 
 if __name__ == '__main__':
-
     data = pd.read_csv('emails.csv')
     train_X, test_X, train_Y, test_Y = train_test_split(data["text"].values,
                                                         data["spam"].values,
