@@ -495,8 +495,26 @@ def predict():
                         p = spamclassifier.SpamClassifier()
                         p.load_model(inputmodel)
                         r = p.predict(x)
-                        print(r)
-                        return render_template('displayresults.html')
+
+                        if isinstance(r, list):
+                            pred = []
+                            for label in list(r):
+                                if label == 0:
+                                    label = "NOT SPAM"
+                                elif label == 1:
+                                    label = "SPAM"
+                                pred.append(label)
+
+                        if isinstance(r, OrderedDict):
+                            pred = OrderedDict()
+                            for key, value in r.items():
+                                if value == 0:
+                                    value = "NOT SPAM"
+                                elif value == 1:
+                                    value = "SPAM"
+                                pred[key] = value
+
+                        return render_template('displayresults.html', predictions=pred)
                     else:
                         flash('Please Choose a single Model')
                         return redirect(request.url)
