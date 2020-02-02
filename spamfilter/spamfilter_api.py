@@ -446,7 +446,7 @@ def predict():
     if request.method == "GET":
         models_list = os.listdir(current_app.config['ML_MODEL_UPLOAD_FOLDER'])
         models_list = [model for model in models_list if 'word_features' not in model]
-        models_list = [(m, m.strip('.pk')) for m in models_list]
+        models_list = [(m.strip('.pk'), m.strip('.pk')) for m in models_list]
 
         form = InputForm()
         form.inputmodel.choices = models_list
@@ -490,10 +490,16 @@ def predict():
                     return redirect(request.url)
 
                 else:
-                    model = pickle.load(open(os.path.join(current_app.config['ML_MODEL_UPLOAD_FOLDER'], inputmodel), 'rb'))
-                    p = spamclassifier.SpamClassifier()
-                    r = model.p.predict(x)
-                    print(r)
+                    if inputmodel is not None:
+
+                        p = spamclassifier.SpamClassifier()
+                        p.load_model(inputmodel)
+                        r = p.predict(x)
+                        print(r)
+                        return render_template('displayresults.html')
+                    else:
+                        flash('Please Choose a single Model')
+                        return redirect(request.url)
 
         else:
             flash('No Input: Provide a Single or Multiple Emails as Input.')

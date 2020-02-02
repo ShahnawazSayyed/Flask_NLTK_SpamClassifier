@@ -94,8 +94,8 @@ class SpamClassifier:
 
     def predict(self, text):
         """
-        Returns prediction labels of given input text. Allowed Text can be a simple string i.e one input email,
-        a list of emails, or a dictionary of emails identified by their labels.
+        Returns prediction labels of given input text.
+        Allowed Text can be a simple string i.e one input email, a list of emails, or a dictionary of emails identified by their labels.
         """
         if isinstance(text, list):
             pred = []
