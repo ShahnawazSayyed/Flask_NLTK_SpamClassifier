@@ -1,5 +1,5 @@
 from flask import render_template, request, flash, redirect, Blueprint, url_for
-from werkzeug import secure_filename
+from werkzeug.utils import secure_filename
 import os, re
 from flask import current_app
 from spamfilter.models import db, File
@@ -210,7 +210,7 @@ def validate_input_text(intext):
     od = OrderedDict()
     emailstxt = intext.splitlines()
 
-    emailstxt = [sen.strip(["\n", "\r"] for sen in emailstxt)]
+    emailstxt = [sen.strip(["\n", "\r"]) for sen in emailstxt]
     notemails = [s for s in emailstxt if not s.startswith("Subject:")]
 
     if len(notemails) > 0:
@@ -490,7 +490,6 @@ def predict():
                     return redirect(request.url)
 
                 else:
-
                     model = pickle.load(open(os.path.join(current_app.config['ML_MODEL_UPLOAD_FOLDER'], inputmodel), 'rb'))
                     p = spamclassifier.SpamClassifier()
                     r = model.p.predict(x)
