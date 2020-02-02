@@ -12,7 +12,6 @@ import pickle
 from spamfilter.forms import InputForm
 from spamfilter import spamclassifier
 import nltk
-
 nltk.download('punkt')
 
 spam_api = Blueprint('SpamAPI', __name__)
