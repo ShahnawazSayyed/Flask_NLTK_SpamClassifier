@@ -12,6 +12,7 @@ import pickle
 from spamfilter.forms import InputForm
 from spamfilter import spamclassifier
 import nltk
+
 nltk.download('punkt')
 
 spam_api = Blueprint('SpamAPI', __name__)
@@ -206,6 +207,21 @@ def validate_input_text(intext):
     If all validations pass, Return an Ordered Dicitionary, whose keys are first 30 characters of each
     input email and values being the complete email text.
     """
+    od = OrderedDict()
+    emailstxt = intext.splitlines()
+
+    emailstxt = [sen.strip(["\n", "\r"] for sen in emailstxt)]
+    notemails = [s for s in emailstxt if not s.startswith("Subject:")]
+
+    if len(notemails) > 0:
+        return False
+    else:
+        for each in emailstxt:
+            key = each[:30]
+            value = each
+            od[key] = value
+
+    return od
 
 
 @spam_api.route('/models/<success_model>/')
@@ -236,12 +252,14 @@ def isFloat(value):
     """
     Return True if <value> is a float, else return False
     """
+    return float(value)
 
 
 def isInt(value):
     """
     Return True if <value> is an integer, else return False
     """
+    return int(value)
 
 
 @spam_api.route('/train/', methods=['GET', 'POST'])
@@ -304,14 +322,14 @@ def train_dataset():
 
             if train_size is not None:
 
-                if float(train_size):
+                if isFloat(train_size):
                     train_size = float(train_size)
 
                     if 0.0 < train_size < 1.0:
 
                         if random_state is not None:
 
-                            if int(random_state):
+                            if isInt(random_state):
                                 random_state = int(random_state)
 
                                 if shuffle is not None:
@@ -425,10 +443,59 @@ def predict():
     11. Render the template 'display_results'
 
     """
-
     if request.method == "GET":
-        form = InputForm(request.form)
+        models_list = os.listdir(current_app.config['ML_MODEL_UPLOAD_FOLDER'])
+        models_list = [model for model in models_list if 'word_features' not in model]
+        models_list = [(m, m.strip('.pk')) for m in models_list]
+
+        form = InputForm()
+        form.inputmodel.choices = models_list
 
         return render_template('emailsubmit.html', form=form)
+
     elif request.method == "POST":
-        pass
+
+        inputemail, inputfile, inputmodel = None, None, None
+        inputemail = request.form['inputemail']
+        inputfile = request.files['inputfile']
+        inputmodel = request.form['inputmodel']
+        input_txt = []
+
+        if inputemail != '' or (inputfile.filename != '' or allowed_file(inputfile.filename, ['txt'])):
+
+            if inputemail != '' and inputfile.filename != '':
+
+                flash('Two Inputs Provided: Provide Only One Input.')
+                return redirect(request.url)
+
+            else:
+
+                if inputemail != '':
+                    input_txt = inputemail
+
+                elif inputfile.filename != '':
+
+                    txtfilename = secure_filename(inputfile.filename)
+                    txtfilepath = current_app.config['INPUT_DATA_UPLOAD_FOLDER']
+                    txt_file_withpath = os.path.join(txtfilepath, txtfilename)
+                    inputfile.save(txt_file_withpath)
+
+                    with open(txt_file_withpath, "r") as f:
+                        input_txt = f.read()
+
+                x = validate_input_text(input_txt)
+
+                if x == False:
+                    flash('Unexpected Format : Input Text is not in Specified Format.')
+                    return redirect(request.url)
+
+                else:
+
+                    model = pickle.load(open(os.path.join(current_app.config['ML_MODEL_UPLOAD_FOLDER'], inputmodel), 'rb'))
+                    p = spamclassifier.SpamClassifier()
+                    r = model.p.predict(x)
+                    print(r)
+
+        else:
+            flash('No Input: Provide a Single or Multiple Emails as Input.')
+            return redirect(request.url)
