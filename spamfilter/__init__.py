@@ -2,17 +2,18 @@ from flask import Flask
 import os
 from spamfilter.spamfilter_api import spam_api
 
-def create_app(testing_config=None):
 
+def create_app(testing_config=None):
     app = Flask(__name__, instance_relative_config=True)
 
-    #Setting default Settings to your application
+    # Setting default Settings to your application
     app.config.from_mapping(
         SECRET_KEY='dev',
-        )
+    )
 
     if testing_config is None:
-        # Overrides default settings based on settings defined in config.py file, present under application instance folder
+        # Overrides default settings based on settings defined in config.py file, present under application instance
+        # folder
         app.config.from_pyfile('config.py', silent=True)
     else:
         app.config.from_mapping(testing_config)
@@ -25,8 +26,9 @@ def create_app(testing_config=None):
         db.create_all()
 
     app.register_blueprint(spam_api)
+
     @app.route('/home')
     def home():
-        return 'This verifies Application working Status : '+app.config['SECRET_KEY']
+        return 'This verifies Application working Status : ' + app.config['SECRET_KEY']
 
     return app

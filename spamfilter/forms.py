@@ -8,4 +8,7 @@ class InputForm(Form):
                        3. inputmodel - a Radio Button
                        4. submit - a Submit Button
     '''
-
+    inputemail = TextAreaField('Input Email', [validators.DataRequired()])
+    inputfile = FileField('Input File', [validators.DataRequired()])
+    inputmodel = RadioField('Input Model', [validators.DataRequired()])
+    submit = SubmitField('Submit')

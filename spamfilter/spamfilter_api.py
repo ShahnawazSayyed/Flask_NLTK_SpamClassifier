@@ -11,12 +11,15 @@ import pickle
 
 from spamfilter.forms import InputForm
 from spamfilter import spamclassifier
+import nltk
+
+nltk.download('punkt')
 
 spam_api = Blueprint('SpamAPI', __name__)
 
 
 def allowed_file(filename, extensions=None):
-    '''
+    """
     'extensions' is either None or a list of file extensions.
 
     If a list is passed as 'extensions' argument, check if 'filename' contains
@@ -25,21 +28,33 @@ def allowed_file(filename, extensions=None):
     If no list is passed to 'extensions' argument, then check if 'filename' contains
     one of the extension provided in list 'ALLOWED_EXTENSIONS', defined in 'config.py',
     and return True or False respectively.
-    '''
+    """
+    ext = extensions
+    if ext is not None:
+        for each in ext:
+            if filename.lower().endswith(each):
+                return True
+        return False
+    else:
+        ext = current_app.config['ALLOWED_EXTENSIONS']
+        for each in ext:
+            if filename.lower().endswith(each):
+                return True
+        return False
 
 
 @spam_api.route('/')
 def index():
-    '''
+    """
     Renders 'index.html'
-    '''
+    """
     return render_template('index.html')
 
 
 @spam_api.route('/listfiles/<success_file>/')
 @spam_api.route('/listfiles/')
 def display_files(success_file=None):
-    '''
+    """
     Obtain the filenames of all CSV files present in 'inputdata' folder and
     pass it to template variable 'files'.
 
@@ -47,11 +62,11 @@ def display_files(success_file=None):
     'fname' is set to value of 'success_file' argument.
 
     if 'success_file' value is passed, corresponding file is highlighted.
-    '''
+    """
 
 
 def validate_input_dataset(input_dataset_path):
-    '''
+    """
     Validate the following details of an Uploaded CSV file
 
     1. The CSV file must contain only 2 columns. If not display the below error message.
@@ -75,12 +90,57 @@ def validate_input_dataset(input_dataset_path):
     Return False if any of the above 6 validations fail.
 
     Return True if all 6 validations pass.
-    '''
+    """
+    No_of_Columns_found = 0
+    data = pd.read_csv(input_dataset_path)
+    headers = list(data.columns)
+
+    for col in data:
+        No_of_Columns_found = No_of_Columns_found + 1
+
+    if No_of_Columns_found == 2:
+
+        if headers == ["text", "spam"]:
+
+            if data["spam"].dtype in ["float64", "int64"]:
+
+                unwanted = []
+                for value in data.spam:
+                    if value not in (0, 1):
+                        unwanted.append(value)
+
+                if len(unwanted) == 0:
+
+                    if data["text"].dtype == "object":
+
+                        if all(x.startswith('Subject:') for x in data["text"]):
+
+                            return True
+                        else:
+                            flash('Some of the input emails does not start with keyword "Subject:".')
+                            return False
+                    else:
+                        flash('Values of text column are not of string type.')
+                        return False
+                else:
+                    unwanted_values = ",".join(unwanted)
+                    flash(
+                        'Only 1 and 0 values are allowed in spam column: Unwanted values ' + unwanted_values + ' appear in spam column')
+                    return False
+            else:
+                flash('Values of spam column are not of integer type.')
+                return False
+        else:
+            flash('Different Column Names: Only column names "text" and "spam" are allowed.')
+            return False
+    else:
+        flash('Only 2 columns allowed: Your input csv file has ' + No_of_Columns_found + ' number of columns.')
+        return False
 
 
 @spam_api.route('/upload/', methods=['GET', 'POST'])
 def file_upload():
-    '''
+    """
     If request is GET, Render 'upload.html'
 
     If request is POST, capture the uploaded file a
@@ -99,11 +159,43 @@ def file_upload():
     if 'validate_input_dataset' returns 'True', create a 'File' object and save it in database, and
     render 'display_files' template with template varaible 'success_file', set to filename of uploaded file.
 
-    '''
+    """
+    if request.method == "GET":
+        return render_template("upload.html")
+    elif request.method == "POST":
+        file = request.files['file']
+        if 'file' in request.files:
+            if allowed_file(file.filename, ['csv']):
+
+                filename = secure_filename(file.filename)
+                file_path = current_app.config['INPUT_DATA_UPLOAD_FOLDER']
+                file_withpath = os.path.join(file_path, filename)
+                file.save(file_withpath)
+
+                if validate_input_dataset(file_withpath):
+
+                    newFileEntry = File(name=filename, filepath=file_path)
+                    db.session.add(newFileEntry)
+                    db.session.commit()
+
+                    files_list = db.engine.execute('select name from File')
+                    file_names = [value for (value,) in files_list]
+
+                    return render_template('fileslist.html', fname=filename, files=file_names)
+                else:
+                    os.remove(file_withpath)
+                    flash('Input csv File Validation Failed, select other valid File')
+                    return redirect(request.url)
+            else:
+                flash('Only CSV Files are allowed as Input.')
+                return redirect(request.url)
+        else:
+            flash('No file part')
+            return redirect(request.url)
 
 
 def validate_input_text(intext):
-    '''
+    """
     Validate the following details of input email text, provided for prediction.
 
     1. If the input email text contains more than one mail, they must be separated by atleast one blank line.
@@ -114,13 +206,13 @@ def validate_input_text(intext):
 
     If all validations pass, Return an Ordered Dicitionary, whose keys are first 30 characters of each
     input email and values being the complete email text.
-    '''
+    """
 
 
 @spam_api.route('/models/<success_model>/')
 @spam_api.route('/models/')
 def display_models(success_model=None):
-    '''
+    """
     Obtain the filenames of all machine learning models present in 'mlmodels' folder and
     pass it to template variable 'files'.
 
@@ -134,24 +226,28 @@ def display_models(success_model=None):
     'model_name' is set to value of 'success_model' argument.
 
     if 'success_model value is passed, corresponding model file name is highlighted.
-    '''
+    """
+    models_list = os.listdir(current_app.config['ML_MODEL_UPLOAD_FOLDER'])
+    models_list = [model for model in models_list if 'word_features' not in model]
+
+    return render_template('modelslist.html', model_name=success_model, files=models_list)
 
 
 def isFloat(value):
-    '''
+    """
     Return True if <value> is a float, else return False
-    '''
+    """
 
 
 def isInt(value):
-    '''
+    """
     Return True if <value> is an integer, else return False
-    '''
+    """
 
 
 @spam_api.route('/train/', methods=['GET', 'POST'])
 def train_dataset():
-    '''
+    """
     If request is of GET method, render 'train.html' template with template variable 'train_files',
     set to list if csv files present in 'inputdata' folder.
 
@@ -191,21 +287,110 @@ def train_dataset():
 
     Finally render, 'display_models' template with value of template varaible 'success_model'
     set to name of model generated, ie. 'sample.pk'
-    '''
+    """
+
+    if request.method == "GET":
+
+        files_list = db.engine.execute('select name from File')
+        file_names = [value for (value,) in files_list]
+        return render_template('train.html', train_files=file_names)
+    elif request.method == "POST":
+        train_file = request.form['train_file']
+        train_size = request.form['train_size']
+        random_state = request.form['random_state']
+        shuffle = request.form['shuffle']
+        stratify = request.form['stratify']
+
+        if train_file:
+
+            if train_size is not None:
+
+                if float(train_size):
+                    train_size = float(train_size)
+
+                    if 0.0 < train_size < 1.0:
+
+                        if random_state is not None:
+
+                            if int(random_state):
+                                random_state = int(random_state)
+
+                                if shuffle is not None:
+
+                                    if shuffle == "N" and stratify == "Y":
+
+                                        flash('When Shuffle is No, Startify cannot be Yes.')
+                                        return redirect(request.url)
+                                    else:
+
+                                        f = File.query.filter_by(name=train_file).first()
+                                        data = pd.read_csv(os.path.join(f.filepath, f.name))
+
+                                        if shuffle == "Y":
+                                            shuffle = True
+                                        else:
+                                            shuffle = False
+
+                                        if stratify == "Y":
+                                            stratify = data["spam"].values
+                                        else:
+                                            stratify = None
+
+                                        train_X, test_X, train_Y, test_Y = train_test_split(data["text"].values,
+                                                                                            data["spam"].values,
+                                                                                            test_size=1 - train_size,
+                                                                                            random_state=random_state,
+                                                                                            shuffle=shuffle,
+                                                                                            stratify=stratify)
+                                        classifier = spamclassifier.SpamClassifier()
+                                        classifier_model, model_word_features = classifier.train(train_X, train_Y)
+                                        model_name = train_file.replace('.csv', '.pk')
+                                        model_word_features_name = train_file.replace('.csv', '_word_features.pk')
+                                        with open(
+                                                os.path.join(current_app.config['ML_MODEL_UPLOAD_FOLDER'], model_name),
+                                                'wb') as model_fp:
+                                            pickle.dump(classifier_model, model_fp)
+                                        with open(os.path.join(current_app.config['ML_MODEL_UPLOAD_FOLDER'],
+                                                               model_word_features_name), 'wb') as model_fp:
+                                            pickle.dump(model_word_features, model_fp)
+
+                                        return display_models(model_name)
+
+                                else:
+                                    flash('No option for shuffle is selected.')
+                                    return redirect(request.url)
+                            else:
+                                flash('Random State must be an integer.')
+                                return redirect(request.url)
+                        else:
+                            flash('No value provided for random state.')
+                            return redirect(request.url)
+                    else:
+                        flash('Training Data Set Size Value must be in between 0.0 and 1.0')
+                        return redirect(request.url)
+                else:
+                    flash('Training Data Set Size must be a float.')
+                    return redirect(request.url)
+            else:
+                flash('No value provided for size of training data set.')
+                return redirect(request.url)
+        else:
+            flash('No CSV file is selected')
+            return redirect(request.url)
 
 
 @spam_api.route('/results/')
 def display_results():
-    '''
+    """
     Read the contents of 'predictions.json' and pass those values to 'predictions' template varaible
 
     Render 'displayresults.html' with value of 'predictions' template variable.
-    '''
+    """
 
 
 @spam_api.route('/predict/', methods=['GET', "POST"])
 def predict():
-    '''
+    """
     If request is of GET method, render 'emailsubmit.html' template with value of template
     variable 'form' set to instance of 'InputForm'(defined in 'forms.py').
     Set the 'inputmodel' choices to names of models (in 'mlmodels' folder), with out extension i.e .pk
@@ -240,5 +425,11 @@ def predict():
 
     11. Render the template 'display_results'
 
-    '''
+    """
 
+    if request.method == "GET":
+        form = InputForm(request.form)
+
+        return render_template('emailsubmit.html', form=form)
+    elif request.method == "POST":
+        pass

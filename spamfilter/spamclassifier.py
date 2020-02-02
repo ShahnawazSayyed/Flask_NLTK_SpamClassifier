@@ -1,6 +1,7 @@
 import pandas as pd
 import pickle
 import re
+import os
 import collections
 import itertools
 from sklearn.model_selection import train_test_split
@@ -8,11 +9,19 @@ from nltk.classify.util import apply_features
 from nltk import NaiveBayesClassifier
 from nltk.tokenize import word_tokenize
 from sklearn.metrics import accuracy_score
-import os
 from flask import current_app
 
 
 class SpamClassifier:
+
+    def load_model(self, model_name):
+        model_file = os.path.join(current_app.config['ML_MODEL_UPLOAD_FOLDER'], model_name + '.pk')
+        model_word_features_file = os.path.join(current_app.config['ML_MODEL_UPLOAD_FOLDER'],
+                                                model_name + '_word_features.pk')
+        with open(model_file, 'rb') as mfp:
+            self.classifier = pickle.load(mfp)
+        with open(model_word_features_file, 'rb') as mwfp:
+            self.word_features = pickle.load(mwfp)
 
     def extract_tokens(self, text, target):
         """returns array of tuples where each tuple is defined by (tokenized_text, label)

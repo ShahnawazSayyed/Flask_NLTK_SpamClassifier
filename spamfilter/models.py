@@ -13,6 +13,9 @@ class File(db.Model):
     3. filepath - Which stores path of file,
     '''
 
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
+    filepath = db.Column(db.String(256))
+
     def __rep__(self):
         return "<File : {}>".format(self.name)
-

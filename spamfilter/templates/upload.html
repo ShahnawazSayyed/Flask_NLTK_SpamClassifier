@@ -13,11 +13,10 @@
   {% endif %}
 {% endwith %}
 
-<form action = "{{ url_for('SpamAPI.file_upload') }}" method = "POST"
-         enctype = "multipart/form-data">
-         <input type = "file" name = "file" /> <br>
-        <input type="reset" value="Refresh">
-         <input type = "submit"/>
+<form action = "{{ url_for('SpamAPI.file_upload') }}" method = "POST" enctype = "multipart/form-data">
+         <input type="file" name="file"/> <br>
+         <input type="reset" value="Refresh">
+         <input type="submit"/>
 </form>
 </div>
 {% endblock %}
