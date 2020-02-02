@@ -208,10 +208,9 @@ def validate_input_text(intext):
     input email and values being the complete email text.
     """
     od = OrderedDict()
-    emailstxt = intext.splitlines()
-
-    emailstxt = [sen.strip(["\n", "\r"]) for sen in emailstxt]
-    notemails = [s for s in emailstxt if not s.startswith("Subject:")]
+    emailstxt = intext.split("\n")
+    emailstxt = [sen.strip("\n") for sen in emailstxt]
+    notemails = [s for s in emailstxt if not s.startswith('"Subject:')]
 
     if len(notemails) > 0:
         return False
@@ -514,7 +513,7 @@ def predict():
                                     value = "SPAM"
                                 pred[key] = value
 
-                        return render_template('displayresults.html', predictions=pred)
+                        return render_template('displayresults.html', predictions=pred.items())
                     else:
                         flash('Please Choose a single Model')
                         return redirect(request.url)
