@@ -66,7 +66,11 @@ def display_files(success_file=None):
     files_list = os.listdir(current_app.config['INPUT_DATA_UPLOAD_FOLDER'])
     file_names = [f for f in files_list if '.csv' in f]
 
-    return render_template('fileslist.html', fname=success_file, files=file_names)
+    if success_file in file_names:
+        return render_template('fileslist.html', fname=success_file, files=file_names)
+    else:
+        flash('No file part')
+        return redirect(request.url)
 
 
 def validate_input_dataset(input_dataset_path):
@@ -165,12 +169,15 @@ def file_upload():
 
     """
     if request.method == "GET":
+
         return render_template("upload.html")
 
     elif request.method == "POST":
+
         file = request.files['file']
 
-        if file.filename != '':
+        if 'file' in request.form or file.filename != '':
+
             if allowed_file(file.filename, ['csv']):
 
                 filename = secure_filename(file.filename)
@@ -355,8 +362,7 @@ def train_dataset():
                                         return redirect(request.url)
                                     else:
 
-                                        f = File.query.filter_by(name=train_file).first()
-                                        data = pd.read_csv(os.path.join(f.filepath, f.name))
+                                        data = pd.read_csv(os.path.join(current_app.config['INPUT_DATA_UPLOAD_FOLDER'], train_file))
 
                                         if shuffle == "Y":
                                             shuffle = True
