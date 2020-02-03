@@ -255,14 +255,22 @@ def isFloat(value):
     """
     Return True if <value> is a float, else return False
     """
-    return float(value)
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
 
 
 def isInt(value):
     """
     Return True if <value> is an integer, else return False
     """
-    return int(value)
+    try:
+        int(value)
+        return True
+    except ValueError:
+        return False
 
 
 @spam_api.route('/train/', methods=['GET', 'POST'])
