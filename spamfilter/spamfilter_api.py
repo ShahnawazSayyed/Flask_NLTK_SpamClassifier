@@ -13,7 +13,7 @@ from spamfilter.forms import InputForm
 from spamfilter import spamclassifier
 import nltk
 
-nltk.download('punkt')
+# nltk.download('punkt')
 
 spam_api = Blueprint('SpamAPI', __name__)
 
@@ -63,6 +63,12 @@ def display_files(success_file=None):
 
     if 'success_file' value is passed, corresponding file is highlighted.
     """
+    files_list = os.listdir(current_app.config['INPUT_DATA_UPLOAD_FOLDER'])
+    file_names = [f for f in files_list if '.csv' in f]
+    # files_list = db.engine.execute('select name from File')
+    # file_names = [value for (value,) in files_list]
+
+    return render_template('fileslist.html', fname=success_file, files=file_names)
 
 
 def validate_input_dataset(input_dataset_path):
@@ -162,9 +168,11 @@ def file_upload():
     """
     if request.method == "GET":
         return render_template("upload.html")
+
     elif request.method == "POST":
         file = request.files['file']
-        if 'file' in request.files:
+
+        if file.filename != '':
             if allowed_file(file.filename, ['csv']):
 
                 filename = secure_filename(file.filename)
@@ -178,10 +186,8 @@ def file_upload():
                     db.session.add(newFileEntry)
                     db.session.commit()
 
-                    files_list = db.engine.execute('select name from File')
-                    file_names = [value for (value,) in files_list]
+                    return display_files(filename)
 
-                    return render_template('fileslist.html', fname=filename, files=file_names)
                 else:
                     os.remove(file_withpath)
                     flash('Input csv File Validation Failed, select other valid File')
@@ -311,6 +317,7 @@ def train_dataset():
         file_names = [value for (value,) in files_list]
         return render_template('train.html', train_files=file_names)
     elif request.method == "POST":
+        print(request.data)
         train_file = request.form['train_file']
         train_size = request.form['train_size']
         random_state = request.form['random_state']
