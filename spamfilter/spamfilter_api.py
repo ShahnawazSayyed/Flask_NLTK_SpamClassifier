@@ -65,8 +65,6 @@ def display_files(success_file=None):
     """
     files_list = os.listdir(current_app.config['INPUT_DATA_UPLOAD_FOLDER'])
     file_names = [f for f in files_list if '.csv' in f]
-    # files_list = db.engine.execute('select name from File')
-    # file_names = [value for (value,) in files_list]
 
     return render_template('fileslist.html', fname=success_file, files=file_names)
 
@@ -313,27 +311,30 @@ def train_dataset():
 
     if request.method == "GET":
 
-        files_list = db.engine.execute('select name from File')
-        file_names = [value for (value,) in files_list]
+        files_list = os.listdir(current_app.config['INPUT_DATA_UPLOAD_FOLDER'])
+        file_names = [f for f in files_list if '.csv' in f]
         return render_template('train.html', train_files=file_names)
+
     elif request.method == "POST":
-        print(request.data)
-        train_file = request.form['train_file']
+
+        train_file, shuffle, stratify = None, None, None
+
         train_size = request.form['train_size']
         random_state = request.form['random_state']
         shuffle = request.form['shuffle']
         stratify = request.form['stratify']
 
-        if train_file:
+        if 'train_file' in request.form:
+            train_file = request.form['train_file']
 
-            if train_size is not None:
+            if train_size != '':
 
                 if isFloat(train_size):
                     train_size = float(train_size)
 
                     if 0.0 < train_size < 1.0:
 
-                        if random_state is not None:
+                        if random_state != '':
 
                             if isInt(random_state):
                                 random_state = int(random_state)
