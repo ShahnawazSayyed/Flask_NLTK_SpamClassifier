@@ -174,11 +174,11 @@ def file_upload():
 
     elif request.method == "POST":
 
-        file = request.files['file']
+        file = request.files.get('file')
 
-        if 'file' in request.form or file.filename != '':
+        if file is not None:
 
-            if allowed_file(file.filename, ['csv']):
+            if file.filename != '' and allowed_file(file.filename, ['csv']):
 
                 filename = secure_filename(file.filename)
                 file_path = current_app.config['INPUT_DATA_UPLOAD_FOLDER']
@@ -219,15 +219,16 @@ def validate_input_text(intext):
     input email and values being the complete email text.
     """
     od = OrderedDict()
-    emailstxt = intext.split("\n")
-    emailstxt = [sen.strip("\n") for sen in emailstxt]
-    notemails = [s for s in emailstxt if not s.startswith('"Subject:')]
+
+    emailstxt = intext.split('\n')
+    emailstxt = [sen.strip('\n\"\r') for sen in emailstxt if sen.strip()]
+    notemails = [s for s in emailstxt if not s.startswith('Subject:')]
 
     if len(notemails) > 0:
         return False
     else:
         for each in emailstxt:
-            key = each[:30]
+            key = each
             value = each
             od[key] = value
 
@@ -263,8 +264,13 @@ def isFloat(value):
     Return True if <value> is a float, else return False
     """
     try:
-        float(value)
-        return True
+        if value is None:
+            return False
+        elif float(value):
+            return True
+        else:
+            return False
+
     except ValueError:
         return False
 
@@ -274,8 +280,13 @@ def isInt(value):
     Return True if <value> is an integer, else return False
     """
     try:
-        int(value)
-        return True
+        if value is None:
+            return False
+        elif int(value):
+            return True
+        else:
+            return False
+
     except ValueError:
         return False
 
@@ -332,90 +343,75 @@ def train_dataset():
 
     elif request.method == "POST":
 
-        train_file, shuffle, stratify = None, None, None
+        train_file = request.form.get('train_file')
+        train_size = request.form.get('train_size')
+        random_state = request.form.get('random_state')
+        shuffle = request.form.get('shuffle')
+        stratify = request.form.get('stratify')
 
-        train_size = request.form['train_size']
-        random_state = request.form['random_state']
-        shuffle = request.form['shuffle']
-        stratify = request.form['stratify']
-
-        if 'train_file' in request.form:
-            train_file = request.form['train_file']
-
-            if train_size != '':
-
-                if isFloat(train_size):
-                    train_size = float(train_size)
-
-                    if 0.0 < train_size < 1.0:
-
-                        if random_state != '':
-
-                            if isInt(random_state):
-                                random_state = int(random_state)
-
-                                if shuffle is not None:
-
-                                    if shuffle == "N" and stratify == "Y":
-
-                                        flash('When Shuffle is No, Startify cannot be Yes.')
-                                        return redirect(request.url)
-                                    else:
-
-                                        data = pd.read_csv(os.path.join(current_app.config['INPUT_DATA_UPLOAD_FOLDER'], train_file))
-
-                                        if shuffle == "Y":
-                                            shuffle = True
-                                        else:
-                                            shuffle = False
-
-                                        if stratify == "Y":
-                                            stratify = data["spam"].values
-                                        else:
-                                            stratify = None
-
-                                        train_X, test_X, train_Y, test_Y = train_test_split(data["text"].values,
-                                                                                            data["spam"].values,
-                                                                                            test_size=1 - train_size,
-                                                                                            random_state=random_state,
-                                                                                            shuffle=shuffle,
-                                                                                            stratify=stratify)
-                                        classifier = spamclassifier.SpamClassifier()
-                                        classifier_model, model_word_features = classifier.train(train_X, train_Y)
-                                        model_name = train_file.replace('.csv', '.pk')
-                                        model_word_features_name = train_file.replace('.csv', '_word_features.pk')
-                                        with open(
-                                                os.path.join(current_app.config['ML_MODEL_UPLOAD_FOLDER'], model_name),
-                                                'wb') as model_fp:
-                                            pickle.dump(classifier_model, model_fp)
-                                        with open(os.path.join(current_app.config['ML_MODEL_UPLOAD_FOLDER'],
-                                                               model_word_features_name), 'wb') as model_fp:
-                                            pickle.dump(model_word_features, model_fp)
-
-                                        return display_models(model_name)
-
-                                else:
-                                    flash('No option for shuffle is selected.')
-                                    return redirect(request.url)
-                            else:
-                                flash('Random State must be an integer.')
-                                return redirect(request.url)
-                        else:
-                            flash('No value provided for random state.')
-                            return redirect(request.url)
-                    else:
-                        flash('Training Data Set Size Value must be in between 0.0 and 1.0')
-                        return redirect(request.url)
-                else:
-                    flash('Training Data Set Size must be a float.')
-                    return redirect(request.url)
-            else:
-                flash('No value provided for size of training data set.')
-                return redirect(request.url)
-        else:
+        if train_file is None:
             flash('No CSV file is selected')
             return redirect(request.url)
+        elif train_size is None or train_size == '' or 'train_size' not in request.form:
+            flash('No value provided for size of training data set.')
+            return redirect(request.url)
+        elif not isFloat(train_size):
+            flash('Training Data Set Size must be a float.')
+            return redirect(request.url)
+        else:
+            train_size = float(train_size)
+            if train_size <= 0.0 or train_size >= 1.0:
+                flash('Training Data Set Size Value must be in between 0.0 and 1.0')
+                return redirect(request.url)
+            elif random_state is None or random_state == '' or 'random_state' not in request.form:
+                flash('No value provided for random state.')
+                return redirect(request.url)
+            elif not isInt(random_state):
+                flash('Random State must be an integer.')
+                return redirect(request.url)
+            elif shuffle is None:
+                flash('No option for shuffle is selected.')
+                return redirect(request.url)
+            elif shuffle == 'N' and stratify == 'Y':
+                flash('When Shuffle is No, Startify cannot be Yes.')
+                return redirect(request.url)
+            else:
 
+                data = pd.read_csv(os.path.join(current_app.config['INPUT_DATA_UPLOAD_FOLDER'], train_file))
+
+                test_size = 1.0 - train_size
+
+                random_state = int(random_state)
+
+                if shuffle == "Y":
+                    shuffle = True
+                else:
+                    shuffle = False
+
+                if stratify == "Y":
+                    stratify = data["spam"].values
+                else:
+                    stratify = None
+
+                train_X, test_X, train_Y, test_Y = train_test_split(data["text"].values,
+                                                                    data["spam"].values,
+                                                                    test_size=test_size,
+                                                                    random_state=random_state,
+                                                                    shuffle=shuffle,
+                                                                    stratify=stratify)
+                classifier = spamclassifier.SpamClassifier()
+                classifier_model, model_word_features = classifier.train(train_X, train_Y)
+                model_name = train_file.replace('.csv', '.pk')
+                model_word_features_name = train_file.replace('.csv', '_word_features.pk')
+                with open(
+                        os.path.join(current_app.config['ML_MODEL_UPLOAD_FOLDER'], model_name),
+                        'wb') as model_fp:
+                    pickle.dump(classifier_model, model_fp)
+                with open(os.path.join(current_app.config['ML_MODEL_UPLOAD_FOLDER'],
+                                        model_word_features_name), 'wb') as model_fp:
+                    pickle.dump(model_word_features, model_fp)
+
+                return display_models(model_name)
 
 @spam_api.route('/results/')
 def display_results():
@@ -424,6 +420,10 @@ def display_results():
 
     Render 'displayresults.html' with value of 'predictions' template variable.
     """
+    with open(os.path.join(current_app.config['INPUT_DATA_UPLOAD_FOLDER'], 'predictions.json'),'r') as fp:
+        prediction = json.loads(fp)
+        print(prediction)
+    return render_template('displayresults.html', predictions=prediction)
 
 
 @spam_api.route('/predict/', methods=['GET', "POST"])
@@ -476,70 +476,60 @@ def predict():
 
     elif request.method == "POST":
 
-        inputemail, inputfile, inputmodel = None, None, None
-        inputemail = request.form['inputemail']
-        inputfile = request.files['inputfile']
-        inputmodel = request.form['inputmodel']
+        inputemail = request.form.get('inputemail')
+        inputfile = request.files.get('inputfile')
+        inputmodel = request.form.get('inputmodel')
         input_txt = []
 
-        if inputemail != '' or (inputfile.filename != '' or allowed_file(inputfile.filename, ['txt'])):
-
-            if inputemail != '' and inputfile.filename != '':
-
-                flash('Two Inputs Provided: Provide Only One Input.')
-                return redirect(request.url)
-
-            else:
-
-                if inputemail != '':
-                    input_txt = inputemail
-
-                elif inputfile.filename != '':
-
-                    txtfilename = secure_filename(inputfile.filename)
-                    txtfilepath = current_app.config['INPUT_DATA_UPLOAD_FOLDER']
-                    txt_file_withpath = os.path.join(txtfilepath, txtfilename)
-                    inputfile.save(txt_file_withpath)
-
-                    with open(txt_file_withpath, "r") as f:
-                        input_txt = f.read()
-
-                x = validate_input_text(input_txt)
-
-                if x == False:
-                    flash('Unexpected Format : Input Text is not in Specified Format.')
-                    return redirect(request.url)
-
-                else:
-                    if inputmodel is not None:
-
-                        p = spamclassifier.SpamClassifier()
-                        p.load_model(inputmodel)
-                        r = p.predict(x)
-
-                        if isinstance(r, list):
-                            pred = []
-                            for label in list(r):
-                                if label == 0:
-                                    label = "NOT SPAM"
-                                elif label == 1:
-                                    label = "SPAM"
-                                pred.append(label)
-
-                        if isinstance(r, OrderedDict):
-                            pred = OrderedDict()
-                            for key, value in r.items():
-                                if value == 0:
-                                    value = "NOT SPAM"
-                                elif value == 1:
-                                    value = "SPAM"
-                                pred[key] = value
-
-                        return render_template('displayresults.html', predictions=pred.items())
-                    else:
-                        flash('Please Choose a single Model')
-                        return redirect(request.url)
-
-        else:
+        if inputemail == '' and inputfile.filename == '':
             flash('No Input: Provide a Single or Multiple Emails as Input.')
             return redirect(request.url)
+        elif inputemail != '' and inputfile.filename != '':
+            flash('Two Inputs Provided: Provide Only One Input.')
+            return redirect(request.url)
+        else:
+            if inputemail != '':
+                input_txt = inputemail
+            elif inputfile.filename != '' and allowed_file(inputfile.filename, ['txt']):
+                txtfilename = secure_filename(inputfile.filename)
+                txtfilepath = current_app.config['INPUT_DATA_UPLOAD_FOLDER']
+                txt_file_withpath = os.path.join(txtfilepath, txtfilename)
+                inputfile.save(txt_file_withpath)
+
+                with open(txt_file_withpath, "r") as f:
+                    input_txt = f.read()
+
+            if not validate_input_text(input_txt):
+                flash('Unexpected Format : Input Text is not in Specified Format.')
+                return redirect(request.url)
+            elif inputmodel is None:
+                flash('Please Choose a single Model')
+                return redirect(request.url)
+            else:
+                x = validate_input_text(input_txt)
+                p = spamclassifier.SpamClassifier()
+                p.load_model(inputmodel)
+                r = p.predict(x)
+
+                if isinstance(r, list):
+                    pred = []
+                    for label in list(r):
+                        if label == 0:
+                            label = "NOT SPAM"
+                        elif label == 1:
+                            label = "SPAM"
+                        pred.append(label)
+
+                if isinstance(r, OrderedDict):
+                    pred = OrderedDict()
+                    for key, value in r.items():
+                        if value == 0:
+                            value = "NOT SPAM"
+                        elif value == 1:
+                            value = "SPAM"
+                        pred[key] = value
+
+                with open(os.path.join(current_app.config['INPUT_DATA_UPLOAD_FOLDER'], 'predictions.json'), 'w') as fp:
+                    json.dump(pred, fp)
+
+                return render_template('displayresults.html', predictions=pred.items())

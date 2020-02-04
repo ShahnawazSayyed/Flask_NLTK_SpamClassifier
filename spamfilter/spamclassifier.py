@@ -112,7 +112,7 @@ class SpamClassifier:
 
 
 if __name__ == '__main__':
-    data = pd.read_csv('emails.csv')
+    data = pd.read_csv('inputdata/emails.csv')
     train_X, test_X, train_Y, test_Y = train_test_split(data["text"].values,
                                                         data["spam"].values,
                                                         test_size=0.25,
